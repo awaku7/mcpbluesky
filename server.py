@@ -23,6 +23,7 @@ mcp = FastMCP(
 # セッション情報を保持するグローバル変数
 SESSION = {
     "accessJwt": None,
+    "refreshJwt": None,
     "did": None,
     "handle": None,
     "pds_url": "https://bsky.social" # 基本的に bsky.social を使用
@@ -46,6 +47,10 @@ async def bsky_login(handle: str, password: str) -> str:
     if not handle or not password:
         return "Error: Handle and password are required."
 
+    # すでに同じハンドル名でログイン済みの場合はスキップ
+    if SESSION["accessJwt"] and SESSION["handle"] == handle:
+        return f"Already logged in as {handle}."
+
     try:
         # ログイン時は認証が必要なため bsky.social を直接叩く
         result = http_post_json(
@@ -55,12 +60,39 @@ async def bsky_login(handle: str, password: str) -> str:
         )
         
         SESSION["accessJwt"] = result.get("accessJwt")
+        SESSION["refreshJwt"] = result.get("refreshJwt")
         SESSION["did"] = result.get("did")
         SESSION["handle"] = result.get("handle")
         
         return f"Login successful as {SESSION['handle']} (DID: {SESSION['did']})"
     except Exception as e:
         return f"Login failed: {str(e)}"
+
+@mcp.tool()
+async def bsky_refresh_session() -> str:
+    """
+    リフレッシュトークンを使用してセッションを更新します（認証済みである必要があります）。
+    """
+    if not SESSION["refreshJwt"]:
+        return "Error: No refresh token available. Please login first."
+    
+    try:
+        # リフレッシュ時は refreshJwt を Authorization ヘッダにセットする
+        result = http_post_json(
+            "/xrpc/com.atproto.server.refreshSession",
+            {},
+            extra_headers={"Authorization": f"Bearer {SESSION['refreshJwt']}"},
+            base_url=SESSION["pds_url"]
+        )
+        
+        SESSION["accessJwt"] = result.get("accessJwt")
+        SESSION["refreshJwt"] = result.get("refreshJwt")
+        SESSION["did"] = result.get("did")
+        SESSION["handle"] = result.get("handle")
+        
+        return f"Session refreshed successfully for {SESSION['handle']}"
+    except Exception as e:
+        return f"Refresh failed: {str(e)}"
 
 @mcp.tool()
 async def bsky_get_profile(handle: str) -> str:
