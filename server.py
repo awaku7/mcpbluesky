@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 from typing import Dict, Optional
@@ -24,22 +25,58 @@ except ImportError:
     from tools_bluesky import register_bluesky_tools
 
 
-class SessionManager:
-    """複数ユーザーのセッションを管理するクラス"""
 
-    def __init__(self, get_json, post_json):
+class SessionManager:
+    """複数ユーザーのセッションを管理するクラス（永続化対応）"""
+
+    def __init__(self, get_json, post_json, storage_file="sessions.json"):
         self.sessions: Dict[str, BlueskyAPI] = {}
         self.http_get_json = get_json
         self.http_post_json = post_json
+        self.storage_file = storage_file
         self.default_handle: Optional[str] = None
+        self.load_sessions()
+
+    def load_sessions(self):
+        """ファイルからセッション情報を読み込む"""
+        if not os.path.exists(self.storage_file):
+            return
+        try:
+            with open(self.storage_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                for handle, s_data in data.items():
+                    session = BlueskySession(**s_data)
+                    api = BlueskyAPI(session, self.http_get_json, self.http_post_json)
+                    self.sessions[handle] = api
+                self.default_handle = list(self.sessions.keys())[-1] if self.sessions else None
+                print(f"Loaded {len(self.sessions)} sessions from {self.storage_file}")
+        except Exception as e:
+            print(f"Failed to load sessions: {e}")
+
+    def save_sessions(self):
+        """セッション情報をファイルに保存する"""
+        try:
+            data = {}
+            for handle, api in self.sessions.items():
+                # dataclass を辞書変換
+                s = api.session
+                data[handle] = {
+                    "accessJwt": s.accessJwt,
+                    "refreshJwt": s.refreshJwt,
+                    "did": s.did,
+                    "handle": s.handle,
+                    "pds_url": s.pds_url
+                }
+            with open(self.storage_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            print(f"Failed to save sessions: {e}")
 
     def get_api(self, handle: Optional[str] = None) -> BlueskyAPI:
-        """指定されたハンドル、または最後にログインしたハンドルのAPIインスタンスを返す"""
         target = handle or self.default_handle
         if target and target in self.sessions:
+            # 必要に応じてここで有効期限チェックや refresh_session を呼ぶロジックも追加可能
             return self.sessions[target]
-
-        # セッションがない場合は未認証の新規インスタンスを返す
         return BlueskyAPI(
             session=BlueskySession(pds_url="https://bsky.social"),
             http_get_json=self.http_get_json,
@@ -49,6 +86,8 @@ class SessionManager:
     def add_session(self, handle: str, api: BlueskyAPI):
         self.sessions[handle] = api
         self.default_handle = handle
+        self.save_sessions()
+
 
 
 # FastMCPインスタンスを作成
