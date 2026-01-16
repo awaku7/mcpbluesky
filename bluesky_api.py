@@ -2,14 +2,15 @@ import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Optional
 
 
 @dataclass
 class BlueskySession:
-    accessJwt: str | None = None
-    refreshJwt: str | None = None
-    did: str | None = None
-    handle: str | None = None
+    accessJwt: Optional[str] = None
+    refreshJwt: Optional[str] = None
+    did: Optional[str] = None
+    handle: Optional[str] = None
     pds_url: str = "https://bsky.social"
 
 
@@ -65,7 +66,7 @@ class BlueskyAPI:
             }
         return {"base_url": "https://public.api.bsky.app"}
 
-    def require_auth(self) -> str | None:
+    def require_auth(self) -> Optional[str]:
         if not self.session.accessJwt:
             return "Error: Authentication required."
         return None
@@ -125,7 +126,7 @@ class BlueskyAPI:
         result = self.http_get_json("/xrpc/app.bsky.actor.getProfile", {"actor": handle}, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def get_author_feed(self, handle: str, limit: int = 10, cursor: str | None = None) -> str:
+    def get_author_feed(self, handle: str, limit: int = 10, cursor: Optional[str] = None) -> str:
         params = self.auth_params()
         query = {"actor": handle, "limit": limit}
         if cursor:
@@ -138,7 +139,7 @@ class BlueskyAPI:
         result = self.http_get_json("/xrpc/app.bsky.feed.getActorFeeds", {"actor": handle}, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def get_timeline(self, limit: int = 20, cursor: str | None = None) -> str:
+    def get_timeline(self, limit: int = 20, cursor: Optional[str] = None) -> str:
         err = self.require_auth()
         if err:
             return err
@@ -152,7 +153,7 @@ class BlueskyAPI:
     def get_timeline_page(
         self,
         limit: int = 50,
-        cursor: str | None = None,
+        cursor: Optional[str] = None,
         summary: bool = True,
         text_max_len: int = 120,
     ) -> str:
@@ -221,7 +222,7 @@ class BlueskyAPI:
         )
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def get_follows(self, handle: str, limit: int = 50, cursor: str | None = None) -> str:
+    def get_follows(self, handle: str, limit: int = 50, cursor: Optional[str] = None) -> str:
         params = self.auth_params()
         query = {"actor": handle, "limit": limit}
         if cursor:
@@ -229,7 +230,7 @@ class BlueskyAPI:
         result = self.http_get_json("/xrpc/app.bsky.graph.getFollows", query, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def get_followers(self, handle: str, limit: int = 50, cursor: str | None = None) -> str:
+    def get_followers(self, handle: str, limit: int = 50, cursor: Optional[str] = None) -> str:
         params = self.auth_params()
         query = {"actor": handle, "limit": limit}
         if cursor:
@@ -237,7 +238,7 @@ class BlueskyAPI:
         result = self.http_get_json("/xrpc/app.bsky.graph.getFollowers", query, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def get_notifications(self, limit: int = 20, cursor: str | None = None) -> str:
+    def get_notifications(self, limit: int = 20, cursor: Optional[str] = None) -> str:
         err = self.require_auth()
         if err:
             return err
@@ -346,7 +347,7 @@ class BlueskyAPI:
         result = self.http_post_json("/xrpc/com.atproto.repo.createRecord", data, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def search_posts(self, query: str, limit: int = 10, cursor: str | None = None) -> str:
+    def search_posts(self, query: str, limit: int = 10, cursor: Optional[str] = None) -> str:
         params = self.auth_params()
         q_params = {"q": query, "limit": limit}
         if cursor:
@@ -359,7 +360,7 @@ class BlueskyAPI:
         result = self.http_get_json("/xrpc/app.bsky.feed.getLikes", {"uri": uri}, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def get_lists(self, handle: str, limit: int = 50, cursor: str | None = None) -> str:
+    def get_lists(self, handle: str, limit: int = 50, cursor: Optional[str] = None) -> str:
         params = self.auth_params()
         query = {"actor": handle, "limit": limit}
         if cursor:
@@ -367,7 +368,7 @@ class BlueskyAPI:
         result = self.http_get_json("/xrpc/app.bsky.graph.getLists", query, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def get_list(self, list_uri: str, limit: int = 50, cursor: str | None = None) -> str:
+    def get_list(self, list_uri: str, limit: int = 50, cursor: Optional[str] = None) -> str:
         params = self.auth_params()
         query = {"list": list_uri, "limit": limit}
         if cursor:
@@ -537,7 +538,7 @@ class BlueskyAPI:
         result = self.http_post_json("/xrpc/com.atproto.repo.deleteRecord", data, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def search_users(self, term: str, limit: int = 10, cursor: str | None = None) -> str:
+    def search_users(self, term: str, limit: int = 10, cursor: Optional[str] = None) -> str:
         params = self.auth_params()
         query = {"q": term, "limit": limit}
         if cursor:
@@ -561,7 +562,7 @@ class BlueskyAPI:
         result = self.http_post_json("/xrpc/app.bsky.graph.unmuteActor", {"actor": handle}, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def update_profile(self, displayName: str | None = None, description: str | None = None) -> str:
+    def update_profile(self, displayName: Optional[str] = None, description: Optional[str] = None) -> str:
         err = self.require_auth()
         if err:
             return err
