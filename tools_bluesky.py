@@ -14,17 +14,29 @@ def register_bluesky_tools(mcp, manager):
     @mcp.tool()
     async def bsky_login(handle: str, password: str) -> str:
         """Blueskyにログインしてセッションを開始します。
-        複数ユーザーで利用する場合、各ユーザーのハンドル名で個別にログインしてください。
+        既存のセッションがある場合は一度ログアウトしてから再ログインします。
         :param handle: ユーザーのハンドル名 (例: yourname.bsky.social)
         :param password: アプリパスワード
         """
         from bluesky_api import BlueskyAPI, BlueskySession
+
+        # 既存セッションがあれば削除(ログアウト)
+        if handle in manager.sessions:
+            manager.remove_session(handle)
+
         new_session = BlueskySession(pds_url="https://bsky.social")
         api = BlueskyAPI(new_session, manager.http_get_json, manager.http_post_json)
         result = api.login(handle, password)
         if "successful" in result:
             manager.add_session(handle, api)
         return result
+
+    @mcp.tool()
+    async def bsky_logout(handle: str) -> str:
+        """指定したハンドルのログインセッションを破棄（ログアウト）します。"""
+        if manager.remove_session(handle):
+            return f"Successfully logged out: {handle}"
+        return f"Handle not found in sessions: {handle}" 
 
     @mcp.tool()
     async def bsky_refresh_session(acting_handle: Optional[str] = None) -> str:

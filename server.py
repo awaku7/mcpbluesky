@@ -88,6 +88,17 @@ class SessionManager:
         self.default_handle = handle
         self.save_sessions()
 
+    def remove_session(self, handle: str) -> bool:
+        """セッションを削除し、ファイルからも除去する"""
+        if handle in self.sessions:
+            del self.sessions[handle]
+            # デフォルトハンドルの調整
+            if self.default_handle == handle:
+                self.default_handle = list(self.sessions.keys())[-1] if self.sessions else None
+            self.save_sessions()
+            return True
+        return False
+
 
 
 # FastMCPインスタンスを作成
