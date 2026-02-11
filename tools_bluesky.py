@@ -12,13 +12,29 @@ def register_bluesky_tools(mcp, manager):
     """Register Bluesky-related MCP tools on the provided FastMCP instance."""
 
     @mcp.tool()
-    async def bsky_login(handle: str, password: str) -> str:
+    async def bsky_login(handle: Optional[str] = None, password: Optional[str] = None) -> str:
         """Blueskyにログインしてセッションを開始します。
         既存のセッションがある場合は一度ログアウトしてから再ログインします。
-        :param handle: ユーザーのハンドル名 (例: yourname.bsky.social)
+
+        handle/password が未指定(None)の場合は、環境変数から補完します。
+        - BSKY_HANDLE: ユーザーのハンドル名 (例: yourname.bsky.social)
+        - BSKY_APP_PASSWORD: アプリパスワード
+
+        :param handle: ユーザーのハンドル名
         :param password: アプリパスワード
         """
+        import os
         from bluesky_api import BlueskyAPI, BlueskySession
+
+        if handle is None:
+            handle = os.getenv("BSKY_HANDLE")
+        if password is None:
+            password = os.getenv("BSKY_APP_PASSWORD")
+
+        if not handle:
+            return "Error: handle is required. Provide 'handle' argument or set env var BSKY_HANDLE."
+        if not password:
+            return "Error: password is required. Provide 'password' argument or set env var BSKY_APP_PASSWORD."
 
         # 既存セッションがあれば削除(ログアウト)
         if handle in manager.sessions:
