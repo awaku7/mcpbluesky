@@ -94,7 +94,8 @@ db = BlueskyDB()
 manager = SessionManager(http_get_json, http_post_json)
 
 # Jetstream listener control (set in main)
-JETSTREAM_ENABLED = True
+# NOTE: 起動時デフォルトでは Jetstream を起動しない。必要な場合は --jetstream を指定する。
+JETSTREAM_ENABLED = False
 
 # MCP tool registration
 register_bluesky_tools(mcp, manager)
@@ -163,9 +164,9 @@ def main(argv: Optional[list[str]] = None) -> None:
         help="Mount path for HTTP transports (FastMCP mount_path)",
     )
     parser.add_argument(
-        "--no-jetstream",
+        "--jetstream",
         action="store_true",
-        help="Disable Jetstream background listener",
+        help="Enable Jetstream background listener",
     )
 
     args = parser.parse_args(argv)
@@ -179,7 +180,7 @@ def main(argv: Optional[list[str]] = None) -> None:
         mcp.host = args.host
         mcp.port = args.port
 
-    JETSTREAM_ENABLED = not args.no_jetstream
+    JETSTREAM_ENABLED = bool(args.jetstream)
 
     if JETSTREAM_ENABLED:
         import threading
