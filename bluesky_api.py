@@ -1,5 +1,6 @@
 import json
 import re
+import grapheme
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional
@@ -31,28 +32,35 @@ class BlueskyAPI:
     # -------------------------
     @staticmethod
     def parse_facets(text: str):
-        """テキストからURLを抽出してBlueskyのfacetsフォーマットに変換します。"""
+        """テキストからURLとハッシュタグを抽出してBlueskyのfacetsフォーマットに変換します。"""
         facets = []
+        
+        # URLの抽出
         url_regex = re.compile(r"(https?://[^\s<>\"]+|www\.[^\s<>\"]+)")
-
         for match in url_regex.finditer(text):
             url = match.group(0)
             uri = url if url.startswith("http") else f"https://{url}"
-
             start_byte = len(text[: match.start()].encode("utf-8"))
             end_byte = len(text[: match.end()].encode("utf-8"))
+            facets.append({
+                "index": {"byteStart": start_byte, "byteEnd": end_byte},
+                "features": [{"$type": "app.bsky.richtext.facet#link", "uri": uri}]
+            })
 
-            facets.append(
-                {
-                    "index": {"byteStart": start_byte, "byteEnd": end_byte},
-                    "features": [
-                        {
-                            "$type": "app.bsky.richtext.facet#link",
-                            "uri": uri,
-                        }
-                    ],
-                }
-            )
+        # ハッシュタグの抽出
+        hashtag_regex = re.compile(r"(#[^\s!@#$%^&*()=+\[\]{}:;\"'<>,.?/\\|~`]+)")
+        for match in hashtag_regex.finditer(text):
+            tag = match.group(0)
+            tag_value = tag[1:] # '#'を除いた値
+            start_byte = len(text[: match.start()].encode("utf-8"))
+            end_byte = len(text[: match.end()].encode("utf-8"))
+            facets.append({
+                "index": {"byteStart": start_byte, "byteEnd": end_byte},
+                "features": [{"$type": "app.bsky.richtext.facet#tag", "tag": tag_value}]
+            })
+
+        # 開始位置でソート
+        facets.sort(key=lambda x: x["index"]["byteStart"])
         return facets
 
     def _now_iso_z(self) -> str:
@@ -261,10 +269,30 @@ class BlueskyAPI:
     # -------------------------
     # Write APIs
     # -------------------------
+    def validate_post_text(self, text: str) -> Optional[str]:
+        """Lexicon仕様に基づきテキストをバリデーションします。
+        - maxGraphemes: 300
+        - maxLength (bytes): 3000
+        """
+        g_count = grapheme.length(text)
+        if g_count > 300:
+            return f"Error: Post text is too long ({g_count}/300 graphemes)."
+        
+        b_count = len(text.encode("utf-8"))
+        if b_count > 3000:
+            return f"Error: Post text is too long ({b_count}/3000 bytes)."
+        
+        return None
+
     def post(self, text: str) -> str:
         err = self.require_auth()
         if err:
             return err
+        
+        v_err = self.validate_post_text(text)
+        if v_err:
+            return v_err
+
         params = self.auth_params()
         now = self._now_iso_z()
         facets = self.parse_facets(text)
@@ -288,6 +316,11 @@ class BlueskyAPI:
         err = self.require_auth()
         if err:
             return err
+        
+        v_err = self.validate_post_text(text)
+        if v_err:
+            return v_err
+
         params = self.auth_params()
         now = self._now_iso_z()
         facets = self.parse_facets(text)
