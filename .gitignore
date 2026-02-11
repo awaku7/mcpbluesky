@@ -5,3 +5,6 @@ __pycache__/
 sessions.json
 *.org
 *.org[0-9]*
+
+# build artifacts
+/dist/

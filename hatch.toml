@@ -1,0 +1,3 @@
+[build]
+# Use src-layout
+sources = ["src"]

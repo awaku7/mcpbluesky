@@ -17,7 +17,8 @@ _RATE_LOCK = threading.Lock()
 _LAST_REQUEST_TS = 0.0
 _MIN_INTERVAL = 0.2
 
-def _throttle():
+
+def _throttle() -> None:
     global _LAST_REQUEST_TS
     with _RATE_LOCK:
         now = time.time()
@@ -27,6 +28,7 @@ def _throttle():
             now = time.time()
         _LAST_REQUEST_TS = now
 
+
 class ZscalerContinueParser(HTMLParser):
     def __init__(self):
         super().__init__()
@@ -34,6 +36,7 @@ class ZscalerContinueParser(HTMLParser):
         self.in_form = False
         self.action = None
         self.hidden = {}
+
     def handle_starttag(self, tag, attrs):
         attrs = dict(attrs)
         if tag.lower() == "form" and "_sm_ctn" in attrs.get("action", ""):
@@ -42,7 +45,9 @@ class ZscalerContinueParser(HTMLParser):
         elif self.in_form and tag.lower() == "input" and attrs.get("type") == "hidden":
             name = attrs.get("name")
             value = attrs.get("value", "")
-            if name: self.hidden[name] = value
+            if name:
+                self.hidden[name] = value
+
     def handle_endtag(self, tag):
         if tag.lower() == "form" and self.in_form:
             self.in_form = False
@@ -50,26 +55,40 @@ class ZscalerContinueParser(HTMLParser):
                 q = urllib.parse.urlencode(self.hidden)
                 self.continue_url = f"{self.action}?{q}"
 
+
 def try_zscaler_continue(html: str) -> str | None:
-    if "_sm_ctn" not in html: return None
+    if "_sm_ctn" not in html:
+        return None
     parser = ZscalerContinueParser()
     parser.feed(html)
     return parser.continue_url
 
-def _trigger_zscaler_continue(url: str):
+
+def _trigger_zscaler_continue(url: str) -> None:
     try:
         cj = urllib.request.HTTPCookieProcessor()
         opener = urllib.request.build_opener(cj)
         req = urllib.request.Request(url, headers={"User-Agent": UA})
-        with opener.open(req, timeout=15) as r: pass
-    except Exception as e: print(f"Zscaler continue失敗: {e}")
+        with opener.open(req, timeout=15):
+            pass
+    except Exception as e:
+        print(f"Zscaler continue失敗: {e}")
 
-def http_get_json(path: str, params: dict, retries: int = 3, extra_headers: dict = None, base_url: str = APPVIEW) -> dict:
+
+def http_get_json(
+    path: str,
+    params: dict,
+    retries: int = 3,
+    extra_headers: dict | None = None,
+    base_url: str = APPVIEW,
+) -> dict:
     q = urllib.parse.urlencode(params, doseq=True)
     url = f"{base_url}{path}?{q}"
     headers = {"User-Agent": UA}
-    if extra_headers: headers.update(extra_headers)
+    if extra_headers:
+        headers.update(extra_headers)
     req = urllib.request.Request(url, headers=headers)
+
     for attempt in range(1, retries + 1):
         try:
             _throttle()
@@ -83,28 +102,49 @@ def http_get_json(path: str, params: dict, retries: int = 3, extra_headers: dict
                         continue
                 return json.loads(data)
         except urllib.error.HTTPError as e:
-            try: body = e.read().decode(errors="ignore")
-            except: body = ""
+            try:
+                body = e.read().decode(errors="ignore")
+            except Exception:
+                body = ""
+
             cont_url = try_zscaler_continue(body)
             if cont_url:
                 _trigger_zscaler_continue(cont_url)
                 time.sleep(2)
                 continue
+
             if e.code == 429:
                 wait = int(e.headers.get("Retry-After", 10))
-                time.sleep(wait); continue
+                time.sleep(wait)
+                continue
             elif e.code in (403, 500, 502, 503, 504):
-                time.sleep(3); continue
-            else: raise
-        except Exception as e:
+                time.sleep(3)
+                continue
+            else:
+                raise
+        except Exception:
             time.sleep(2)
+
     raise RuntimeError("HTTPリトライ失敗")
 
-def http_post_json(path: str, payload: dict, retries: int = 3, extra_headers: dict = None, base_url: str = APPVIEW) -> dict:
+
+def http_post_json(
+    path: str,
+    payload: dict,
+    retries: int = 3,
+    extra_headers: dict | None = None,
+    base_url: str = APPVIEW,
+) -> dict:
     url = f"{base_url}{path}"
     body_bytes = json.dumps(payload).encode("utf-8")
-    headers = {"User-Agent": UA, "Content-Type": "application/json", "Accept": "application/json"}
-    if extra_headers: headers.update(extra_headers)
+    headers = {
+        "User-Agent": UA,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    if extra_headers:
+        headers.update(extra_headers)
+
     for attempt in range(1, retries + 1):
         try:
             _throttle()
@@ -119,19 +159,27 @@ def http_post_json(path: str, payload: dict, retries: int = 3, extra_headers: di
                         continue
                 return json.loads(data) if data.strip() else {}
         except urllib.error.HTTPError as e:
-            try: body = e.read().decode(errors="ignore")
-            except: body = ""
+            try:
+                body = e.read().decode(errors="ignore")
+            except Exception:
+                body = ""
+
             cont_url = try_zscaler_continue(body)
             if cont_url:
                 _trigger_zscaler_continue(cont_url)
                 time.sleep(2)
                 continue
+
             if e.code == 429:
                 wait = int(e.headers.get("Retry-After", 10))
-                time.sleep(wait); continue
+                time.sleep(wait)
+                continue
             elif e.code in (403, 500, 502, 503, 504):
-                time.sleep(3); continue
-            else: raise
-        except Exception as e:
+                time.sleep(3)
+                continue
+            else:
+                raise
+        except Exception:
             time.sleep(2)
+
     raise RuntimeError("HTTPリトライ失敗")

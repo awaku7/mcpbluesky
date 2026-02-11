@@ -34,7 +34,7 @@ class BlueskyAPI:
     def parse_facets(text: str):
         """テキストからURLとハッシュタグを抽出してBlueskyのfacetsフォーマットに変換します。"""
         facets = []
-        
+
         # URLの抽出
         url_regex = re.compile(r"(https?://[^\s<>\"]+|www\.[^\s<>\"]+)")
         for match in url_regex.finditer(text):
@@ -42,22 +42,32 @@ class BlueskyAPI:
             uri = url if url.startswith("http") else f"https://{url}"
             start_byte = len(text[: match.start()].encode("utf-8"))
             end_byte = len(text[: match.end()].encode("utf-8"))
-            facets.append({
-                "index": {"byteStart": start_byte, "byteEnd": end_byte},
-                "features": [{"$type": "app.bsky.richtext.facet#link", "uri": uri}]
-            })
+            facets.append(
+                {
+                    "index": {"byteStart": start_byte, "byteEnd": end_byte},
+                    "features": [
+                        {"$type": "app.bsky.richtext.facet#link", "uri": uri}
+                    ],
+                }
+            )
 
         # ハッシュタグの抽出
-        hashtag_regex = re.compile(r"(#[^\s!@#$%^&*()=+\[\]{}:;\"'<>,.?/\\|~`]+)")
+        hashtag_regex = re.compile(
+            r"(#[^\s!@#$%^&*()=+\[\]{}:;\"'<>,.?/\\|~`]+)"
+        )
         for match in hashtag_regex.finditer(text):
             tag = match.group(0)
-            tag_value = tag[1:] # '#'を除いた値
+            tag_value = tag[1:]  # '#'を除いた値
             start_byte = len(text[: match.start()].encode("utf-8"))
             end_byte = len(text[: match.end()].encode("utf-8"))
-            facets.append({
-                "index": {"byteStart": start_byte, "byteEnd": end_byte},
-                "features": [{"$type": "app.bsky.richtext.facet#tag", "tag": tag_value}]
-            })
+            facets.append(
+                {
+                    "index": {"byteStart": start_byte, "byteEnd": end_byte},
+                    "features": [
+                        {"$type": "app.bsky.richtext.facet#tag", "tag": tag_value}
+                    ],
+                }
+            )
 
         # 開始位置でソート
         facets.sort(key=lambda x: x["index"]["byteStart"])
@@ -131,10 +141,14 @@ class BlueskyAPI:
     # -------------------------
     def get_profile(self, handle: str) -> str:
         params = self.auth_params()
-        result = self.http_get_json("/xrpc/app.bsky.actor.getProfile", {"actor": handle}, **params)
+        result = self.http_get_json(
+            "/xrpc/app.bsky.actor.getProfile", {"actor": handle}, **params
+        )
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def get_author_feed(self, handle: str, limit: int = 10, cursor: Optional[str] = None) -> str:
+    def get_author_feed(
+        self, handle: str, limit: int = 10, cursor: Optional[str] = None
+    ) -> str:
         params = self.auth_params()
         query = {"actor": handle, "limit": limit}
         if cursor:
@@ -144,7 +158,9 @@ class BlueskyAPI:
 
     def get_actor_feeds(self, handle: str) -> str:
         params = self.auth_params()
-        result = self.http_get_json("/xrpc/app.bsky.feed.getActorFeeds", {"actor": handle}, **params)
+        result = self.http_get_json(
+            "/xrpc/app.bsky.feed.getActorFeeds", {"actor": handle}, **params
+        )
         return json.dumps(result, ensure_ascii=False, indent=2)
 
     def get_timeline(self, limit: int = 20, cursor: Optional[str] = None) -> str:
@@ -186,9 +202,13 @@ class BlueskyAPI:
             author = pv.get("author") or {}
             record = pv.get("record") or {}
             text = record.get("text")
-            if isinstance(text, str) and text_max_len is not None and text_max_len > 0:
-                if len(text) > text_max_len:
-                    text = text[:text_max_len] + "…"
+            if (
+                isinstance(text, str)
+                and text_max_len is not None
+                and text_max_len > 0
+                and len(text) > text_max_len
+            ):
+                text = text[:text_max_len] + "…"
 
             return {
                 "uri": pv.get("uri"),
@@ -210,7 +230,9 @@ class BlueskyAPI:
         for item in feed:
             post = item.get("post")
             if isinstance(post, dict):
-                out_items.append({"post": _pick_post_view(post), "reason": item.get("reason")})
+                out_items.append(
+                    {"post": _pick_post_view(post), "reason": item.get("reason")}
+                )
             else:
                 out_items.append({"post": None, "reason": item.get("reason")})
 
@@ -230,7 +252,9 @@ class BlueskyAPI:
         )
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def get_follows(self, handle: str, limit: int = 50, cursor: Optional[str] = None) -> str:
+    def get_follows(
+        self, handle: str, limit: int = 50, cursor: Optional[str] = None
+    ) -> str:
         params = self.auth_params()
         query = {"actor": handle, "limit": limit}
         if cursor:
@@ -238,7 +262,9 @@ class BlueskyAPI:
         result = self.http_get_json("/xrpc/app.bsky.graph.getFollows", query, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def get_followers(self, handle: str, limit: int = 50, cursor: Optional[str] = None) -> str:
+    def get_followers(
+        self, handle: str, limit: int = 50, cursor: Optional[str] = None
+    ) -> str:
         params = self.auth_params()
         query = {"actor": handle, "limit": limit}
         if cursor:
@@ -246,7 +272,9 @@ class BlueskyAPI:
         result = self.http_get_json("/xrpc/app.bsky.graph.getFollowers", query, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def get_notifications(self, limit: int = 20, cursor: Optional[str] = None) -> str:
+    def get_notifications(
+        self, limit: int = 20, cursor: Optional[str] = None
+    ) -> str:
         err = self.require_auth()
         if err:
             return err
@@ -271,24 +299,26 @@ class BlueskyAPI:
     # -------------------------
     def validate_post_text(self, text: str) -> Optional[str]:
         """Lexicon仕様に基づきテキストをバリデーションします。
+
         - maxGraphemes: 300
         - maxLength (bytes): 3000
         """
+
         g_count = grapheme.length(text)
         if g_count > 300:
             return f"Error: Post text is too long ({g_count}/300 graphemes)."
-        
+
         b_count = len(text.encode("utf-8"))
         if b_count > 3000:
             return f"Error: Post text is too long ({b_count}/3000 bytes)."
-        
+
         return None
 
     def post(self, text: str) -> str:
         err = self.require_auth()
         if err:
             return err
-        
+
         v_err = self.validate_post_text(text)
         if v_err:
             return v_err
@@ -312,11 +342,18 @@ class BlueskyAPI:
         result = self.http_post_json("/xrpc/com.atproto.repo.createRecord", data, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def reply(self, text: str, parent_uri: str, parent_cid: str, root_uri: str, root_cid: str) -> str:
+    def reply(
+        self,
+        text: str,
+        parent_uri: str,
+        parent_cid: str,
+        root_uri: str,
+        root_cid: str,
+    ) -> str:
         err = self.require_auth()
         if err:
             return err
-        
+
         v_err = self.validate_post_text(text)
         if v_err:
             return v_err
@@ -380,7 +417,9 @@ class BlueskyAPI:
         result = self.http_post_json("/xrpc/com.atproto.repo.createRecord", data, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def search_posts(self, query: str, limit: int = 10, cursor: Optional[str] = None) -> str:
+    def search_posts(
+        self, query: str, limit: int = 10, cursor: Optional[str] = None
+    ) -> str:
         params = self.auth_params()
         q_params = {"q": query, "limit": limit}
         if cursor:
@@ -393,7 +432,9 @@ class BlueskyAPI:
         result = self.http_get_json("/xrpc/app.bsky.feed.getLikes", {"uri": uri}, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def get_lists(self, handle: str, limit: int = 50, cursor: Optional[str] = None) -> str:
+    def get_lists(
+        self, handle: str, limit: int = 50, cursor: Optional[str] = None
+    ) -> str:
         params = self.auth_params()
         query = {"actor": handle, "limit": limit}
         if cursor:
@@ -401,7 +442,9 @@ class BlueskyAPI:
         result = self.http_get_json("/xrpc/app.bsky.graph.getLists", query, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def get_list(self, list_uri: str, limit: int = 50, cursor: Optional[str] = None) -> str:
+    def get_list(
+        self, list_uri: str, limit: int = 50, cursor: Optional[str] = None
+    ) -> str:
         params = self.auth_params()
         query = {"list": list_uri, "limit": limit}
         if cursor:
@@ -571,7 +614,9 @@ class BlueskyAPI:
         result = self.http_post_json("/xrpc/com.atproto.repo.deleteRecord", data, **params)
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def search_users(self, term: str, limit: int = 10, cursor: Optional[str] = None) -> str:
+    def search_users(
+        self, term: str, limit: int = 10, cursor: Optional[str] = None
+    ) -> str:
         params = self.auth_params()
         query = {"q": term, "limit": limit}
         if cursor:
@@ -584,7 +629,9 @@ class BlueskyAPI:
         if err:
             return err
         params = self.auth_params()
-        result = self.http_post_json("/xrpc/app.bsky.graph.muteActor", {"actor": handle}, **params)
+        result = self.http_post_json(
+            "/xrpc/app.bsky.graph.muteActor", {"actor": handle}, **params
+        )
         return json.dumps(result, ensure_ascii=False, indent=2)
 
     def unmute(self, handle: str) -> str:
@@ -592,10 +639,14 @@ class BlueskyAPI:
         if err:
             return err
         params = self.auth_params()
-        result = self.http_post_json("/xrpc/app.bsky.graph.unmuteActor", {"actor": handle}, **params)
+        result = self.http_post_json(
+            "/xrpc/app.bsky.graph.unmuteActor", {"actor": handle}, **params
+        )
         return json.dumps(result, ensure_ascii=False, indent=2)
 
-    def update_profile(self, displayName: Optional[str] = None, description: Optional[str] = None) -> str:
+    def update_profile(
+        self, displayName: Optional[str] = None, description: Optional[str] = None
+    ) -> str:
         err = self.require_auth()
         if err:
             return err

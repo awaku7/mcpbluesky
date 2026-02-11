@@ -1,0 +1,32 @@
+[build-system]
+requires = ["hatchling>=1.28"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mcpbluesky"
+version = "0.1.1"
+description = "Bluesky API MCP server (FastMCP) with multi-user session management"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+  { name = "mcpbluesky contributors" }
+]
+keywords = ["mcp", "bluesky", "fastmcp"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+
+dependencies = [
+  "fastmcp",
+  "grapheme",
+  "websockets",
+]
+
+[project.urls]
+
+[project.scripts]
+mcpbluesky = "mcpbluesky.server:main"
+
